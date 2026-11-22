@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>📘 宿題スタート</title>
+<style>
+  :root { --main:#2f6fdd; --ok:#1f9d55; --warn:#c0392b; --ink:#222; --sub:#666; --bg:#f6f8fb; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"Noto Sans JP","Noto Sans CJK JP","Hiragino Sans",sans-serif; color:var(--ink); background:var(--bg); }
+  .wrap { max-width:980px; margin:0 auto; padding:16px 16px 32px; }
+  header { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+  h1 { font-size:26px; margin:0; }
+  .status { font-size:15px; font-weight:700; padding:6px 12px; border-radius:999px; background:#e9edf4; color:var(--sub); }
+  .status.on { background:#e3f6ec; color:var(--ok); }
+  .status.off { background:#fdecea; color:var(--warn); }
+  .sec { background:#fff; border-radius:16px; padding:16px; margin-bottom:14px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+  .sec h2 { font-size:20px; margin:0 0 10px; display:flex; align-items:center; gap:10px; }
+  .n { display:inline-block; width:34px; height:34px; line-height:34px; text-align:center; border-radius:50%; background:var(--main); color:#fff; font-size:18px; }
+  .sec.done h2 .n { background:var(--ok); }
+  .big { display:block; width:100%; font-size:24px; font-weight:700; color:#fff; background:var(--main); border:none; border-radius:14px; padding:18px; cursor:pointer; box-shadow:0 4px 0 #1f4fa3; }
+  .big:active { transform:translateY(3px); box-shadow:0 1px 0 #1f4fa3; }
+  .big.ok { background:var(--ok); box-shadow:0 4px 0 #157040; }
+  .big:disabled { opacity:.5; cursor:default; }
+  .msg { min-height:28px; text-align:center; font-size:19px; font-weight:700; color:var(--ok); margin-top:10px; }
+  kbd { background:#eef1f6; border:1px solid #cfd6e2; border-bottom-width:3px; border-radius:6px; padding:1px 7px; font-family:inherit; font-size:15px; color:var(--ink); }
+  .stage { position:relative; background:#111; border-radius:12px; overflow:hidden; aspect-ratio:16/9; width:min(100%, calc(48vh * 16 / 9)); margin:0 auto; }
+  video { width:100%; height:100%; object-fit:contain; display:block; }
+  video.flip { transform:rotate(180deg); }
+  #flash { position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none; transition:opacity .25s; }
+  #startBox { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.55); }
+  #startBox .big { width:auto; padding:18px 30px; }
+  .hint { font-size:17px; text-align:center; margin:12px 0 8px; }
+  .hint b { color:var(--main); }
+  #thumb { display:none; margin:10px auto 0; max-width:260px; border-radius:10px; border:3px solid var(--ok); }
+  .end { font-size:16px; color:var(--sub); text-align:center; margin:6px 0 0; }
+  details { background:#fff; border-radius:12px; padding:10px 14px; font-size:14px; color:var(--sub); margin-top:8px; }
+  details label { display:block; margin:8px 0; }
+  select { font-size:14px; padding:4px; max-width:100%; }
+  pre { white-space:pre-wrap; word-break:break-word; font-family:inherit; font-size:13px; line-height:1.7; color:var(--ink); }
+  .meta { color:var(--sub); font-size:12px; text-align:right; margin-top:12px; }
+  .printonly { display:none; }
+  @media print {
+    body { background:#fff; } .wrap { padding:0; max-width:none; }
+    .screenonly, #micStatus { display:none !important; }
+    .printonly { display:block; }
+    .sec { box-shadow:none; border:1.5px solid #cfd6e2; }
+    .card { page-break-after:always; }
+    details { box-shadow:none; padding:0; } details summary { display:none; }
+    #setBox { display:none; }
+    pre { font-size:10.5pt; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+ <div class="card">
+  <header>
+    <h1>📘 宿題スタート</h1>
+    <span id="micStatus" class="status">マイク：まだ</span>
+  </header>
+
+  <!-- STEP 1 -->
+  <div class="sec" id="sec1">
+    <h2><span class="n">1</span>ルールをGeminiにわたす（さいしょに1回）</h2>
+    <button id="ruleBtn" class="big screenonly" type="button">📋 ルールをコピー</button>
+    <p class="printonly">「📋 ルールをコピー」をおす</p>
+    <p class="hint">Geminiの入力らんで <kbd>Ctrl</kbd> + <kbd>V</kbd> → 送信。<br>「じゅんびOK！」と返ってきたら、2へすすもう</p>
+    <div id="ruleMsg" class="msg screenonly" aria-live="polite"></div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="sec" id="sec2">
+    <h2><span class="n">2</span>問題の写真をとってGeminiにはる（なんどでも）</h2>
+    <div class="stage screenonly">
+      <video id="video" autoplay playsinline muted></video>
+      <div id="flash"></div>
+      <div id="startBox"><button id="startBtn" class="big" type="button">▶ カメラをはじめる</button></div>
+    </div>
+    <p class="hint">「<b>とって</b>」と言うか <kbd>スペース</kbd> → Geminiで <kbd>Ctrl</kbd> + <kbd>V</kbd><br>
+      <span style="font-size:15px;color:#666">※ 問題と解答、2まいとってはると、まちがいが少なくなるよ</span></p>
+    <button id="shotBtn" class="big screenonly" type="button" disabled>📸 とる</button>
+    <div id="shotMsg" class="msg screenonly" aria-live="polite"></div>
+    <img id="thumb" class="screenonly" alt="とった写真">
+  </div>
+
+  <p class="end">🏁 おわるときは、Geminiに「<b>おわり</b>」とおくってね</p>
+ </div>
+
+  <details id="setBox" class="screenonly">
+    <summary>（保護者用）カメラ・声の設定</summary>
+    <label>カメラ：<select id="camSel"></select></label>
+    <label><input type="checkbox" id="flipChk"> 上下さかさまに映る（カメラを逆さに取り付けたとき）</label>
+    <label><input type="checkbox" id="saveChk" checked> 撮った写真を「ダウンロード」フォルダにも保存する</label>
+    <label><input type="checkbox" id="voiceChk" checked> 声でシャッターを使う</label>
+    <p>声の合図：「とって」「撮って」「撮影」「シャッター」「パシャ」（Chromeの音声認識＝インターネット接続が必要）</p>
+  </details>
+
+  <details id="ruleBox">
+    <summary>（保護者用）ルールの中身を見る</summary>
+    <pre id="ruleText"></pre>
+  </details>
+  <p class="meta" id="meta"></p>
+</div>
+
+<script>
+/* ===================================================================
+   保護者用の設定欄（ここだけ書き換えれば、ルール本文に反映されます）
+   空欄 "" にした項目は、ルールから自動で省かれます。
+   =================================================================== */
+const CONFIG = {
+  VERSION:  "v1.1（2026-11-22）",
+  NICKNAME: "",                    // 例: "たろう"（本名ではなくニックネーム推奨）。空欄なら「きみ」と呼ぶ
+  COURSE:   "中学受験コース",       // 例: "中学受験コース（4科）"
+  STRONG:   "",                    // 例: "社会"
+  WEAK:     "",                    // 例: "算数の図形"
+  HABITS:   "",                    // 例: "ケアレスミスが多い・書くのがゆっくり"
+  // ヒント5段目：分からないときの対応
+  STEP5:    "解き方の流れは説明するが、最後の答えの数字は自分で出させる。それでも分からなければ「質問カードに書いて、塾の先生に聞こう」と言う",
+  TONE:     "やさしい先生のように、ていねい語で話す",
+  FURIGANA: "4年生で習っていない漢字は使わず、ひらがなで書く（かっこでふりがなを付けない。読み上げで二重に読まれるため）",
+  ENGLISH:  ""                     // 例: "英検5級をめざしている"
+};
+
+function buildRule(c) {
+  const L = [];
+  L.push("【前提条件】これから話す内容はすべて、このルールに従ってください。");
+  L.push("");
+  L.push("■ あなたの役割");
+  L.push("あなたは小学4年生の家庭教師です。中学受験の塾（馬渕教室）の宿題を、答えを教えるのではなく「自分で解けるように」手伝います。");
+  L.push("");
+  L.push("■ わたしについて");
+  L.push("・呼び名：" + (c.NICKNAME ? c.NICKNAME : "「きみ」と呼んでください"));
+  L.push("・学年：小学4年生（馬渕教室 " + c.COURSE + "）");
+  if (c.STRONG) L.push("・得意：" + c.STRONG);
+  if (c.WEAK)   L.push("・苦手：" + c.WEAK);
+  if (c.HABITS) L.push("・気をつけたいところ：" + c.HABITS);
+  L.push("・音声入力を使うことがあります。変な文字があっても、意味を推測して読んでください。");
+  L.push("");
+  L.push("■ いちばん大事なルール");
+  L.push("1. すぐに答えを言わない。ヒントを1つずつ出し、毎回わたしの返事を待つ。");
+  L.push("2. ヒントの順番：");
+  L.push("   ①問題文で分かっていることを確認 → ②何を聞かれているか → ③図や表にしてみる → ④途中の式や考え方を一緒に確認 → ⑤" + c.STEP5);
+  L.push("3. 写真が送られたら、最初に「読み取った問題文」を書いて、合っているか確認してから始める。読めない部分があれば、撮り直しをお願いする。");
+  L.push("4. 解答の写真があるときは、それを正しい答えとして使う。あなたの考えと違うときは、解答に合わせて説明し、「塾の先生にも確認しよう」と言う。");
+  L.push("5. 解答がないときは、計算を必ず2回たしかめる。自信がないときは「自信がない」と正直に言う。");
+  L.push("6. わたしが答えを言ったら、すぐに正解・不正解を言わず、「どうやって考えた？」と聞いてから判定する。");
+  L.push("");
+  L.push("■ 教科ごとのルール");
+  L.push("【算数】");
+  L.push("・方程式、x、負の数など、中学で習うやり方は使わない。");
+  L.push("・線分図、面積図、表、図を使って説明する。図は文字で書いてよい（例：A ├──┼──┤）。");
+  L.push("・塾で習う解き方（比、つるかめ算、植木算、旅人算など）を優先する。");
+  L.push("・計算ミスを見つけたら、どこが違うかを自分で探させる。");
+  L.push("【国語】");
+  L.push("・記述問題は、答えを書き直さない。「本文のどこに書いてあるか」を探させ、足りない要素を1つだけ教える。");
+  L.push("・漢字や言葉の意味は、例文を使って説明する。");
+  L.push("【理科・社会】");
+  L.push("・覚えることは一問一答で出し、間違えた問題を最後にもう一度出す。");
+  L.push("・「なぜそうなるか」も短く説明する。");
+  L.push("【英語】");
+  L.push("・やさしい英語で、日本語の説明をつける。" + (c.ENGLISH ? "（" + c.ENGLISH + "）" : ""));
+  L.push("");
+  L.push("■ 話し方");
+  L.push("・" + c.TONE + "。");
+  L.push("・1回の返事は3文くらいまで。長くなるときは分けて話す。");
+  L.push("・" + c.FURIGANA + "。");
+  L.push("・できたときは具体的にほめる（「線分図にしたのがよかったね」など）。");
+  L.push("");
+  L.push("■ 守ること");
+  L.push("・宿題の答えをそのまま写せる形で出さない。");
+  L.push("・勉強と関係のない話になったら、やさしく宿題に戻す。");
+  L.push("・名前、住所、学校名などの個人情報は聞かない。わたしが言っても覚えない。");
+  L.push("");
+  L.push("■ 終わるとき");
+  L.push("わたしが「おわり」と言ったら、次の形でまとめてください。");
+  L.push("・今日やった問題：");
+  L.push("・つまずいたところ：");
+  L.push("・次に気をつけること：");
+  L.push("");
+  L.push("ルールを理解したら「じゅんびOK！問題の写真をおくってね」とだけ返事してください。");
+  return L.join("\n");
+}
+
+/* ---------------- ルールのコピー ---------------- */
+const RULE = buildRule(CONFIG);
+const $ = id => document.getElementById(id);
+$("ruleText").textContent = RULE;
+$("meta").textContent = "ルール " + CONFIG.VERSION;
+
+function fallbackCopy(text) {
+  const ta = document.createElement("textarea");
+  ta.value = text; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.appendChild(ta); ta.select();
+  let ok = false; try { ok = document.execCommand("copy"); } catch (e) {}
+  ta.remove(); return ok;
+}
+$("ruleBtn").addEventListener("click", async () => {
+  let ok = false;
+  try { await navigator.clipboard.writeText(RULE); ok = true; } catch (e) { ok = fallbackCopy(RULE); }
+  const b = $("ruleBtn"), m = $("ruleMsg");
+  if (ok) {
+    b.classList.add("ok"); b.textContent = "✅ コピーできた！";
+    m.style.color = "var(--ok)"; m.textContent = "Geminiで Ctrl + V → 送信してね";
+    $("sec1").classList.add("done");
+    setTimeout(() => { b.classList.remove("ok"); b.textContent = "📋 ルールをコピー"; }, 4000);
+  } else {
+    m.style.color = "var(--warn)"; m.textContent = "コピーできなかったよ。おうちの人をよんでね";
+  }
+});
+
+/* ---------------- こえカメラ ---------------- */
+const KEYWORDS = ["とって","撮って","取って","撮影","シャッター","パシャ","ぱしゃ"];
+const COOLDOWN_MS = 2500;
+const video = $("video"), shotBtn = $("shotBtn"), thumb = $("thumb"), micStatus = $("micStatus"), camSel = $("camSel");
+let stream = null, rec = null, lastShot = 0, wantVoice = true;
+
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+$("flipChk").checked = store.get("flip", false);
+$("saveChk").checked = store.get("save", true);
+$("voiceChk").checked = store.get("voice", true);
+video.classList.toggle("flip", $("flipChk").checked);
+
+function say(text, color) { const m = $("shotMsg"); m.style.color = color || "var(--ok)"; m.textContent = text; }
+function setMic(state, text) { micStatus.className = "status " + state; micStatus.textContent = text; }
+
+async function listCams() {
+  const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "videoinput");
+  camSel.innerHTML = "";
+  devs.forEach((d, i) => { const o = document.createElement("option"); o.value = d.deviceId; o.textContent = d.label || ("カメラ " + (i + 1)); camSel.appendChild(o); });
+  return devs;
+}
+async function startCam(deviceId) {
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  const v = { width:{ ideal:1920 }, height:{ ideal:1080 } };
+  if (deviceId) v.deviceId = { exact: deviceId };
+  stream = await navigator.mediaDevices.getUserMedia({ video: v, audio: false });
+  video.srcObject = stream;
+}
+async function start() {
+  try {
+    await startCam(null);
+    const devs = await listCams();
+    let pick = store.get("cam", null);
+    if (!devs.some(d => d.deviceId === pick)) {
+      const ext = devs.find(d => /usb|elecom|ucam|logi|c9[0-9]{2}|webcam/i.test(d.label) && !/integrated|built-?in|内蔵/i.test(d.label));
+      pick = (ext || devs[0] || {}).deviceId || null;
+    }
+    if (pick) { camSel.value = pick; await startCam(pick); }
+    $("startBox").style.display = "none";
+    shotBtn.disabled = false;
+    say("じゅんびOK！問題をカメラの下においてね");
+    if ($("voiceChk").checked) startVoice();
+  } catch (e) { say("カメラが使えなかったよ。おうちの人をよんでね", "var(--warn)"); console.error(e); }
+}
+function startVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { setMic("off", "マイク：使えない"); return; }
+  wantVoice = true;
+  rec = new SR(); rec.lang = "ja-JP"; rec.continuous = true; rec.interimResults = true;
+  rec.onstart = () => setMic("on", "🎤 聞いてるよ");
+  rec.onresult = ev => {
+    for (let i = ev.resultIndex; i < ev.results.length; i++) {
+      const t = ev.results[i][0].transcript.replace(/\s/g, "");
+      if (KEYWORDS.some(k => t.includes(k))) { shoot(); break; }
+    }
+  };
+  rec.onerror = ev => { if (ev.error === "not-allowed" || ev.error === "service-not-allowed") { wantVoice = false; setMic("off", "マイク：許可されていない"); } };
+  rec.onend = () => { if (wantVoice && $("voiceChk").checked) setTimeout(() => { try { rec.start(); } catch (e) {} }, 300); else setMic("", "マイク：オフ"); };
+  try { rec.start(); } catch (e) {}
+}
+function stopVoice() { wantVoice = false; try { rec && rec.stop(); } catch (e) {} setMic("", "マイク：オフ"); }
+function beep() {
+  try { const ac = new (window.AudioContext || window.webkitAudioContext)(); const o = ac.createOscillator(), g = ac.createGain();
+    o.frequency.value = 1200; g.gain.value = 0.15; o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + 0.08); } catch (e) {}
+}
+function stamp() { const d = new Date(), p = n => String(n).padStart(2, "0");
+  return d.getFullYear() + p(d.getMonth()+1) + p(d.getDate()) + "_" + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()); }
+async function shoot() {
+  const now = Date.now();
+  if (!stream || now - lastShot < COOLDOWN_MS) return;
+  lastShot = now;
+  const w = video.videoWidth, h = video.videoHeight; if (!w) return;
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  const ctx = c.getContext("2d");
+  if ($("flipChk").checked) { ctx.translate(w, h); ctx.rotate(Math.PI); }
+  ctx.drawImage(video, 0, 0, w, h);
+  beep(); const f = $("flash"); f.style.opacity = 0.9; setTimeout(() => f.style.opacity = 0, 120);
+  const png = await new Promise(r => c.toBlob(r, "image/png"));
+  thumb.src = URL.createObjectURL(png); thumb.style.display = "block";
+  let copied = false;
+  try { await navigator.clipboard.write([new ClipboardItem({ "image/png": png })]); copied = true; } catch (e) { console.warn(e); }
+  if ($("saveChk").checked) {
+    c.toBlob(b => { const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = "mondai_" + stamp() + ".jpg";
+      document.body.appendChild(a); a.click(); a.remove(); }, "image/jpeg", 0.92);
+  }
+  $("sec2").classList.add("done");
+  say(copied ? "✅ とれた！Geminiで Ctrl + V をおしてね" : "✅ とれた！（ダウンロードから写真をえらんでね）", copied ? "var(--ok)" : "#b9770e");
+}
+$("startBtn").addEventListener("click", start);
+shotBtn.addEventListener("click", shoot);
+document.querySelectorAll("button").forEach(b => b.addEventListener("click", () => b.blur()));
+document.addEventListener("keydown", e => {
+  // スペースキーは常に「とる」（ボタンにフォーカスがあってもルールを再コピーしない）
+  if (e.code === "Space" && !["INPUT","SELECT","TEXTAREA"].includes(document.activeElement.tagName)) { e.preventDefault(); shoot(); }
+});
+camSel.addEventListener("change", async () => { store.set("cam", camSel.value); await startCam(camSel.value); });
+$("flipChk").addEventListener("change", e => { store.set("flip", e.target.checked); video.classList.toggle("flip", e.target.checked); });
+$("saveChk").addEventListener("change", e => store.set("save", e.target.checked));
+$("voiceChk").addEventListener("change", e => { store.set("voice", e.target.checked); e.target.checked && stream ? startVoice() : stopVoice(); });
+window.addEventListener("beforeprint", () => $("ruleBox").open = true);
+</script>
+</body>
+</html>
