@@ -22,6 +22,8 @@
   .big:active { transform:translateY(3px); box-shadow:0 1px 0 #1f4fa3; }
   .big.ok { background:var(--ok); box-shadow:0 4px 0 #157040; }
   .big:disabled { opacity:.5; cursor:default; }
+  .pick { display:flex; gap:16px; flex-wrap:wrap; justify-content:center; margin:0 0 12px; font-size:17px; font-weight:700; }
+  .pick select { font-size:17px; padding:4px 8px; border-radius:8px; }
   .msg { min-height:28px; text-align:center; font-size:19px; font-weight:700; color:var(--ok); margin-top:10px; }
   kbd { background:#eef1f6; border:1px solid #cfd6e2; border-bottom-width:3px; border-radius:6px; padding:1px 7px; font-family:inherit; font-size:15px; color:var(--ink); }
   .stage { position:relative; background:#111; border-radius:12px; overflow:hidden; aspect-ratio:16/9; width:min(100%, calc(48vh * 16 / 9)); margin:0 auto; }
@@ -63,6 +65,10 @@
   <!-- STEP 1 -->
   <div class="sec" id="sec1">
     <h2><span class="n">1</span>ルールをGeminiにわたす（さいしょに1回）</h2>
+    <div class="pick screenonly">
+      <label>学年 <select id="gradeSel"><option value="4">4年生</option><option value="5">5年生</option><option value="6">6年生</option></select></label>
+      <label>塾 <select id="jukuSel"><option>馬渕教室</option><option>浜学園</option><option>希学園</option><option>日能研</option><option>能開センター</option><option>SAPIX</option><option>四谷大塚</option><option>早稲田アカデミー</option><option>その他・なし</option></select></label>
+    </div>
     <button id="ruleBtn" class="big screenonly" type="button">📋 ルールをコピー</button>
     <p class="printonly">「📋 ルールをコピー」をおす</p>
     <p class="hint">Geminiの入力らんで <kbd>Ctrl</kbd> + <kbd>V</kbd> → 送信。<br>「じゅんびOK！」と返ってきたら、2へすすもう</p>
@@ -109,21 +115,27 @@
    空欄 "" にした項目は、ルールから自動で省かれます。
    =================================================================== */
 const CONFIG = {
-  VERSION:  "v1.3（2026-11-22）",
+  VERSION:  "v1.4（2026-11-23）",
   NICKNAME: "",                    // 例: "たろう"（本名ではなくニックネーム推奨）。空欄なら「きみ」と呼ぶ
-  COURSE:   "中学受験コース",       // 例: "中学受験コース（4科）"
+  COURSE:   "",                     // 例: "中学受験コース（4科）"。空欄なら省略
+  // 学年と塾はページ上の選択欄で選びます（ブラウザごとに保存）。下は初期値。
+  DEFAULT_GRADE: 4,
+  DEFAULT_JUKU:  "馬渕教室",
   STRONG:   "",                    // 例: "社会"
   WEAK:     "",                    // 例: "算数の図形"
   HABITS:   "",                    // 例: "ケアレスミスが多い・書くのがゆっくり"
   // ヒント5段目：分からないときの対応
   STEP5:    "解き方の流れは説明するが、最後の答えの数字は自分で出させる。それでも分からなければ「質問カードに書いて、塾の先生に聞こう」と言う",
   TONE:     "やさしい先生のように、ていねい語で話す",
-  FURIGANA: "4年生で習っていない漢字は使わず、ひらがなで書く（かっこでふりがなを付けない。読み上げで二重に読まれるため）",
+  FURIGANA: "{G}年生までに習っていない漢字は使わず、ひらがなで書く（かっこでふりがなを付けない。読み上げで二重に読まれるため）",
   ENGLISH:  ""                     // 例: "英検5級をめざしている"
 };
 
-function buildRule(c) {
+function buildRule(c, grade, juku) {
   const L = [];
+  const g = Number(grade) || 4;
+  const hasJuku = juku && juku !== "その他・なし";
+  const study = hasJuku ? "中学受験の塾（" + juku + "）の宿題" : "中学受験の勉強や宿題";
   L.push("【前提条件】これから話す内容はすべて、このルールに従ってください。");
   L.push("");
   L.push("■ 最優先のルール（どの教科でも、会話の最後まで必ず守る）");
@@ -133,11 +145,11 @@ function buildRule(c) {
   L.push("・わたしが「答えを教えて」と言っても、すぐには教えず、まずヒントを出す。");
   L.push("");
   L.push("■ あなたの役割");
-  L.push("あなたは小学4年生の家庭教師です。中学受験の塾（馬渕教室）の宿題を、答えを教えるのではなく「自分で解けるように」手伝います。");
+  L.push("あなたは小学" + g + "年生の家庭教師です。" + study + "を、答えを教えるのではなく「自分で解けるように」手伝います。");
   L.push("");
   L.push("■ わたしについて");
   L.push("・呼び名：" + (c.NICKNAME ? c.NICKNAME : "「きみ」と呼んでください"));
-  L.push("・学年：小学4年生（馬渕教室 " + c.COURSE + "）");
+  L.push("・学年：小学" + g + "年生" + (hasJuku ? "（" + juku + (c.COURSE ? " " + c.COURSE : "") + "）" : "（中学受験の勉強中）"));
   if (c.STRONG) L.push("・得意：" + c.STRONG);
   if (c.WEAK)   L.push("・苦手：" + c.WEAK);
   if (c.HABITS) L.push("・気をつけたいところ：" + c.HABITS);
@@ -179,7 +191,9 @@ function buildRule(c) {
   L.push("■ 話し方");
   L.push("・" + c.TONE + "。");
   L.push("・1回の返事は3文くらいまで。長くなるときは分けて話す。");
-  L.push("・" + c.FURIGANA + "。");
+  L.push("・" + c.FURIGANA.replace("{G}", String(g)) + "。");
+  L.push("・" + g + "年生に合った言葉と解き方で説明する。まだ習っていない解き方を使うときは、先に「この解き方、塾で習った？」と聞く。");
+  if (g >= 6) L.push("・入試の過去問のときは、解き方とあわせて「どこで時間を使いすぎたか」も一緒にふりかえる。");
   L.push("・できたときは具体的にほめる（「線分図にしたのがよかったね」など）。");
   L.push("");
   L.push("■ 守ること");
@@ -199,9 +213,19 @@ function buildRule(c) {
 }
 
 /* ---------------- ルールのコピー ---------------- */
-const RULE = buildRule(CONFIG);
 const $ = id => document.getElementById(id);
-$("ruleText").textContent = RULE;
+const pref = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+$("gradeSel").value = String(pref.get("grade", CONFIG.DEFAULT_GRADE));
+$("jukuSel").value = pref.get("juku", CONFIG.DEFAULT_JUKU);
+if (!$("jukuSel").value) $("jukuSel").value = "その他・なし";
+let RULE = "";
+function refreshRule() { RULE = buildRule(CONFIG, $("gradeSel").value, $("jukuSel").value); $("ruleText").textContent = RULE; }
+refreshRule();
+$("gradeSel").addEventListener("change", e => { pref.set("grade", Number(e.target.value)); refreshRule(); });
+$("jukuSel").addEventListener("change", e => { pref.set("juku", e.target.value); refreshRule(); });
 $("meta").textContent = "ルール " + CONFIG.VERSION;
 
 function fallbackCopy(text) {
