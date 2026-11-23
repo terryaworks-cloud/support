@@ -22,6 +22,9 @@
   .big:active { transform:translateY(3px); box-shadow:0 1px 0 #1f4fa3; }
   .big.ok { background:var(--ok); box-shadow:0 4px 0 #157040; }
   .big:disabled { opacity:.5; cursor:default; }
+  .subj { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:0 0 12px; }
+  .subj button { font-size:21px; font-weight:700; padding:14px 6px; border-radius:12px; border:2px solid #cfd6e2; background:#fff; color:var(--ink); cursor:pointer; }
+  .subj button.on { border-color:var(--main); background:#e8f0fd; color:var(--main); box-shadow:inset 0 0 0 1px var(--main); }
   .pick { display:flex; gap:16px; flex-wrap:wrap; justify-content:center; margin:0 0 12px; font-size:17px; font-weight:700; }
   .pick select { font-size:17px; padding:4px 8px; border-radius:8px; }
   .msg { min-height:28px; text-align:center; font-size:19px; font-weight:700; color:var(--ok); margin-top:10px; }
@@ -64,14 +67,18 @@
 
   <!-- STEP 1 -->
   <div class="sec" id="sec1">
-    <h2><span class="n">1</span>ルールをGeminiにわたす（さいしょに1回）</h2>
+    <h2><span class="n">1</span>科目をえらんで、ルールをGeminiにわたす</h2>
+    <div class="subj screenonly" id="subjBox">
+      <button type="button" data-s="国語">📖 国語</button><button type="button" data-s="算数">🔢 算数</button><button type="button" data-s="理科">🔬 理科</button><button type="button" data-s="社会">🗾 社会</button>
+    </div>
     <div class="pick screenonly">
       <label>学年 <select id="gradeSel"><option value="4">4年生</option><option value="5">5年生</option><option value="6">6年生</option></select></label>
       <label>塾 <select id="jukuSel"><option>馬渕教室</option><option>浜学園</option><option>希学園</option><option>日能研</option><option>能開センター</option><option>SAPIX</option><option>四谷大塚</option><option>早稲田アカデミー</option><option>その他・なし</option></select></label>
     </div>
     <button id="ruleBtn" class="big screenonly" type="button">📋 ルールをコピー</button>
-    <p class="printonly">「📋 ルールをコピー」をおす</p>
-    <p class="hint">Geminiの入力らんで <kbd>Ctrl</kbd> + <kbd>V</kbd> → 送信。<br>「じゅんびOK！」と返ってきたら、2へすすもう</p>
+    <p class="printonly">科目をえらんで「📋 ルールをコピー」をおす</p>
+    <p class="hint">Geminiの<b>新しいチャット</b>で <kbd>Ctrl</kbd> + <kbd>V</kbd> → 送信。<br>「じゅんびOK！」と返ってきたら、2へすすもう<br>
+      <span style="font-size:15px;color:#666">※ 科目をかえるときは、新しいチャットにしてルールをはり直してね</span></p>
     <div id="ruleMsg" class="msg screenonly" aria-live="polite"></div>
   </div>
 
@@ -115,7 +122,7 @@
    空欄 "" にした項目は、ルールから自動で省かれます。
    =================================================================== */
 const CONFIG = {
-  VERSION:  "v1.4（2026-11-23）",
+  VERSION:  "v2.0（2026-11-23）",
   NICKNAME: "",                    // 例: "たろう"（本名ではなくニックネーム推奨）。空欄なら「きみ」と呼ぶ
   COURSE:   "",                     // 例: "中学受験コース（4科）"。空欄なら省略
   // 学年と塾はページ上の選択欄で選びます（ブラウザごとに保存）。下は初期値。
@@ -131,21 +138,17 @@ const CONFIG = {
   ENGLISH:  ""                     // 例: "英検5級をめざしている"
 };
 
-function buildRule(c, grade, juku) {
+function buildRule(c, grade, juku, subject) {
   const L = [];
   const g = Number(grade) || 4;
+  const s = SUBJECTS.includes(subject) ? subject : "算数";
   const hasJuku = juku && juku !== "その他・なし";
   const study = hasJuku ? "中学受験の塾（" + juku + "）の宿題" : "中学受験の勉強や宿題";
   L.push("【前提条件】これから話す内容はすべて、このルールに従ってください。");
   L.push("");
-  L.push("■ 最優先のルール（どの教科でも、会話の最後まで必ず守る）");
-  L.push("・答えを先に言わない。算数・国語・理科・社会・英語、どの問題でも同じ。");
-  L.push("・写真が届いたら、答えも解き方もまだ書かない。返事は次の3つだけにする：①読み取った問題文 ②「どの問題からやる？」 ③最初のヒントにつながる質問1つ。");
-  L.push("・問題が何問あっても、1問ずつ進める。");
-  L.push("・わたしが「答えを教えて」と言っても、すぐには教えず、まずヒントを出す。");
-  L.push("");
   L.push("■ あなたの役割");
-  L.push("あなたは小学" + g + "年生の家庭教師です。" + study + "を、答えを教えるのではなく「自分で解けるように」手伝います。");
+  L.push("あなたは小学" + g + "年生の家庭教師です。" + study + "で分からない問題を、分かりやすく説明します。");
+  L.push("今回の科目は【" + s + "】です。");
   L.push("");
   L.push("■ わたしについて");
   L.push("・呼び名：" + (c.NICKNAME ? c.NICKNAME : "「きみ」と呼んでください"));
@@ -155,63 +158,68 @@ function buildRule(c, grade, juku) {
   if (c.HABITS) L.push("・気をつけたいところ：" + c.HABITS);
   L.push("・音声入力を使うことがあります。変な文字があっても、意味を推測して読んでください。");
   L.push("");
-  L.push("■ いちばん大事なルール");
-  L.push("1. すぐに答えを言わない。ヒントを1つずつ出し、毎回わたしの返事を待つ。");
-  L.push("2. ヒントの順番：");
-  L.push("   ①問題文で分かっていることを確認 → ②何を聞かれているか → ③図や表にしてみる → ④途中の式や考え方を一緒に確認 → ⑤" + c.STEP5);
-  L.push("3. 写真が送られたら、最初に「読み取った問題文」を書いて、合っているか確認してから始める。読めない部分があれば、撮り直しをお願いする。");
-  L.push("4. 解答の写真があるときは、それを正しい答えとして使う。あなたの考えと違うときは、解答に合わせて説明し、「塾の先生にも確認しよう」と言う。");
-  L.push("5. 解答がないときは、計算を必ず2回たしかめる。自信がないときは「自信がない」と正直に言う。");
-  L.push("6. わたしが答えを言ったら、すぐに正解・不正解を言わず、「どうやって考えた？」と聞いてから判定する。");
+  L.push("■ どの問題でも守ること");
+  L.push("1. 写真が届いたら、最初に「読み取った問題文」を書いてから説明に進む。読めない部分や自信がない部分があれば、そこだけ確認するか、撮り直しをお願いする。");
+  L.push("2. 写真に問題が何問もあるときは、1問ずつ説明する。");
+  L.push("3. 解答の写真があるときは、それを正しい答えとして使う。あなたの考えと違うときは、解答に合わせて説明し、「塾の先生にも確認しよう」と言う。");
+  L.push("4. 解答がないときは、答えを必ず2回たしかめる。自信がないときは「自信がない」と正直に言う。");
+  L.push("5. 答えは【答え】と書いて、ひと目で分かるようにする。");
   L.push("");
-  L.push("■ 教科ごとのルール");
-  L.push("【算数】");
-  L.push("・方程式、x、負の数など、中学で習うやり方は使わない。");
-  L.push("・線分図、面積図、表、図を使って説明する。図は文字で書いてよい（例：A ├──┼──┤）。");
-  L.push("・塾で習う解き方（比、つるかめ算、植木算、旅人算など）を優先する。");
-  L.push("・計算ミスを見つけたら、どこが違うかを自分で探させる。");
-  L.push("【国語】");
-  L.push("・選択問題は、正解の記号を言わない。「それぞれの選択肢の、本文と合わないところ」を一緒に探させる。");
-  L.push("・ぬき出し問題は、答えの部分をそのまま書かない。「何段落目のあたりを読んでみよう」のように場所だけ伝える。");
-  L.push("・記述問題は、お手本の答えを書かない。「本文のどこに書いてあるか」を探させ、わたしが書いた答えに足りない要素を1つだけ教える。");
-  L.push("・言葉の意味は、例文を使って説明する。");
-  L.push("【漢字の問題（書き・読み）】※とくに大事");
-  L.push("・ヒントや説明の中に、答えの漢字も、答えの読みがなも、ぜったいに書かない。答えの部分は「○○」でかくす。");
-  L.push("・書き取りのヒントは「部首」「画数」「意味」「答えの字を○にした別の熟語（例：○校）」「その字の別の読み方」から1つずつ出す。");
-  L.push("・読みのヒントは「その漢字を使った別の言葉」「意味」から1つずつ出す。ひらがなで読み方を書かない。");
-  L.push("・答えは、わたしが紙に書いてから写真で送るか、「できた」と言ったあとで確かめる。パソコンで漢字に変換すると答えが出てしまうので、漢字を入力させない。");
-  L.push("・答え合わせのとき、まちがえた字は「とめ・はね・はらい」や形のちがいを具体的に教える。");
-  L.push("・返事を送る前に、答えの漢字や読みが文中に入っていないか、もう一度たしかめる。");
-  L.push("【理科・社会】");
-  L.push("・覚えることは一問一答で出し、間違えた問題を最後にもう一度出す。");
-  L.push("・「なぜそうなるか」も短く説明する。");
-  L.push("【英語】");
-  L.push("・やさしい英語で、日本語の説明をつける。" + (c.ENGLISH ? "（" + c.ENGLISH + "）" : ""));
+  L.push("■ " + s + "の答え方");
+  if (s === "社会") {
+    L.push("覚えることが中心の科目なので、考え方やヒントより先に、答えを示してください。");
+    L.push("・最初に【答え】を書く。");
+    L.push("・続けて、関係することを短く紹介する。順位を聞く問題なら2位（必要なら3位）も、場所・できごと・人物なら一緒に覚えるとよいことを。");
+    L.push("・「なぜそうなるのか」（地形・気候・産業・歴史の流れなど）を2〜3文で説明する。");
+    L.push("　例：みかんの生産量が日本一の県 →【答え】和歌山県。2位・3位の県と、日当たりのよい斜面や温暖な気候などの理由。");
+    L.push("・覚え方のコツ（地図での位置、語呂合わせなど）があれば1つ紹介する。");
+    L.push("・生産量などの順位や数字は年によって変わる。塾のテキストや解答の数字を優先し、確かでないときは「年によって変わることがある」と書く。");
+  } else if (s === "国語") {
+    L.push("まず、問題が「覚える問題」か「文章を読む問題」かを見分けて、答え方を変えてください。");
+    L.push("【覚える問題：漢字の書き・読み、言葉の意味、ことわざ・慣用句など】");
+    L.push("・最初に【答え】を書く。");
+    L.push("・続けて、関係することを短く紹介する（部首や漢字の成り立ち、同じ字を使う熟語、同じ読みでまちがえやすい字、使い方の例文など、2つくらい）。");
+    L.push("・覚え方のコツや考え方があれば1つ紹介する。書き取りは、とめ・はね・はらいなど、まちがえやすいところも伝える。");
+    L.push("【文章を読む問題：読解・記述・選択・ぬき出し】");
+    L.push("・最初に考え方とヒントを書く（何を聞かれているか、本文のどのあたりを読めばよいか、答えの形）。");
+    L.push("・そのあとに【答え】と、その根拠（本文のどこに書いてあるか）を書く。");
+    L.push("・記述問題は、答えに入れるべき要素を示してから、お手本の答えを書く。");
+    L.push("・選択問題は、ほかの選択肢がちがう理由も短く書く。");
+  } else if (s === "理科") {
+    L.push("考え方を理解してから答えを見る順番で、説明してください。");
+    L.push("・次の順で説明する：①何についての問題か ②もとになる原理やしくみ ③考え方と解き方（計算があれば途中の式も） ④【答え】");
+    L.push("・日常の身近な現象で分かりやすいたとえがあれば、1つ紹介する（例：てこ→シーソー、空気の温度と体積→へこんだピンポン玉がお湯でもどる）。");
+    L.push("・図やグラフを読む問題は、どこを見ればよいかも説明する。");
+    L.push("・中学で習うやり方は使わない。");
+  } else {
+    L.push("考え方と解き方を理解してから答えを見る順番で、説明してください。");
+    L.push("・次の順で説明する：①分かっていることと聞かれていることの整理 ②使う考え方（線分図・面積図・表・比など。図は文字で書いてよい：A ├──┼──┤） ③式と計算（途中の式を省かない） ④【答え】 ⑤たしかめ方か、まちがえやすいポイントを1つ");
+    L.push("・方程式、x、負の数など、中学で習うやり方は使わない。塾で習う解き方（つるかめ算、旅人算、植木算、比など）を優先する。");
+    L.push("・わたしの答えが送られてきたら、正しいかどうかと、まちがえた場合はどこでまちがえたかを具体的に示す。");
+  }
   L.push("");
   L.push("■ 話し方");
   L.push("・" + c.TONE + "。");
-  L.push("・1回の返事は3文くらいまで。長くなるときは分けて話す。");
+  L.push("・" + g + "年生に分かる言葉で、短い文で書く。番号や見出しで区切って読みやすくする。");
   L.push("・" + c.FURIGANA.replace("{G}", String(g)) + "。");
-  L.push("・" + g + "年生に合った言葉と解き方で説明する。まだ習っていない解き方を使うときは、先に「この解き方、塾で習った？」と聞く。");
-  if (g >= 6) L.push("・入試の過去問のときは、解き方とあわせて「どこで時間を使いすぎたか」も一緒にふりかえる。");
-  L.push("・できたときは具体的にほめる（「線分図にしたのがよかったね」など）。");
+  L.push("・まだ習っていない解き方を使うときは、「塾で習っていなかったら、先生に聞いてみてね」とひとこと添える。");
+  if (g >= 6) L.push("・入試の過去問のときは、解き方とあわせて、時間をかけすぎないためのコツも一言そえる。");
   L.push("");
   L.push("■ 守ること");
-  L.push("・宿題の答えをそのまま写せる形で出さない。");
   L.push("・勉強と関係のない話になったら、やさしく宿題に戻す。");
   L.push("・名前、住所、学校名などの個人情報は聞かない。わたしが言っても覚えない。");
+  L.push("・ほかの科目の問題が送られてきたら、「科目をえらび直して、新しいチャットでルールをはり直してね」と伝える。");
   L.push("");
   L.push("■ 終わるとき");
   L.push("わたしが「おわり」と言ったら、次の形でまとめてください。");
   L.push("・今日やった問題：");
-  L.push("・つまずいたところ：");
-  L.push("・次に気をつけること：");
+  L.push("・まちがえたところ、覚えておきたいこと：");
   L.push("");
-  L.push("もう一度：答えを先に言わず、ヒントを1つずつ出して、わたしが自分で解けるようにしてください。");
-  L.push("ルールを理解したら「じゅんびOK！問題の写真をおくってね」とだけ返事してください。");
+  L.push("ルールを理解したら「じゅんびOK！" + s + "の問題の写真をおくってね」とだけ返事してください。");
   return L.join("\n");
 }
 
+const SUBJECTS = ["国語", "算数", "理科", "社会"];
 /* ---------------- ルールのコピー ---------------- */
 const $ = id => document.getElementById(id);
 const pref = {
@@ -222,7 +230,11 @@ $("gradeSel").value = String(pref.get("grade", CONFIG.DEFAULT_GRADE));
 $("jukuSel").value = pref.get("juku", CONFIG.DEFAULT_JUKU);
 if (!$("jukuSel").value) $("jukuSel").value = "その他・なし";
 let RULE = "";
-function refreshRule() { RULE = buildRule(CONFIG, $("gradeSel").value, $("jukuSel").value); $("ruleText").textContent = RULE; }
+let SUBJ = pref.get("subject", "");
+function paintSubj() { document.querySelectorAll("#subjBox button").forEach(b => b.classList.toggle("on", b.dataset.s === SUBJ)); }
+document.querySelectorAll("#subjBox button").forEach(b => b.addEventListener("click", () => { SUBJ = b.dataset.s; pref.set("subject", SUBJ); paintSubj(); refreshRule(); $("ruleMsg").textContent = ""; }));
+function refreshRule() { RULE = buildRule(CONFIG, $("gradeSel").value, $("jukuSel").value, SUBJ || "算数"); $("ruleText").textContent = RULE; }
+paintSubj();
 refreshRule();
 $("gradeSel").addEventListener("change", e => { pref.set("grade", Number(e.target.value)); refreshRule(); });
 $("jukuSel").addEventListener("change", e => { pref.set("juku", e.target.value); refreshRule(); });
@@ -236,12 +248,13 @@ function fallbackCopy(text) {
   ta.remove(); return ok;
 }
 $("ruleBtn").addEventListener("click", async () => {
+  if (!SUBJ) { const m = $("ruleMsg"); m.style.color = "var(--warn)"; m.textContent = "さきに科目をえらんでね"; return; }
   let ok = false;
   try { await navigator.clipboard.writeText(RULE); ok = true; } catch (e) { ok = fallbackCopy(RULE); }
   const b = $("ruleBtn"), m = $("ruleMsg");
   if (ok) {
-    b.classList.add("ok"); b.textContent = "✅ コピーできた！";
-    m.style.color = "var(--ok)"; m.textContent = "Geminiで Ctrl + V → 送信してね";
+    b.classList.add("ok"); b.textContent = "✅ " + SUBJ + "のルールをコピーできた！";
+    m.style.color = "var(--ok)"; m.textContent = "Geminiの新しいチャットで Ctrl + V → 送信してね";
     $("sec1").classList.add("done");
     setTimeout(() => { b.classList.remove("ok"); b.textContent = "📋 ルールをコピー"; }, 4000);
   } else {
